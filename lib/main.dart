@@ -146,7 +146,7 @@ class _HomePageState extends State<HomePage> {
       ),
       bottomNavigationBar: NavigationBar(
         backgroundColor: const Color(0xFF111019),
-        indicatorColor: purple.withOpacity(0.2),
+        indicatorColor: purple.withValues(alpha: 0.2),
         selectedIndex: selectedTab,
         onDestinationSelected: (index) {
           if (index == 3) {
@@ -342,7 +342,7 @@ class _HomePageState extends State<HomePage> {
       decoration: BoxDecoration(
         color: surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.06)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -352,7 +352,7 @@ class _HomePageState extends State<HomePage> {
             child: Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: purple.withOpacity(0.2),
+                  backgroundColor: purple.withValues(alpha: 0.2),
                   child: Text(
                     post['initial']!,
                     style: const TextStyle(
