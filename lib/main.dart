@@ -549,6 +549,197 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+
+  Future<void> toggleLike(String postId) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final likeRef = postsRef.doc(postId).collection('likes').doc(user.uid);
+
+    try {
+      final like = await likeRef.get();
+      if (like.exists) {
+        await likeRef.delete();
+      } else {
+        await likeRef.set({
+          'userId': user.uid,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+    } catch (_) {
+      if (mounted) showMessage('تعذر تسجيل الإعجاب');
+    }
+  }
+
+  Future<void> showComments(String postId) async {
+    final controller = TextEditingController();
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final commentsRef =
+        postsRef.doc(postId).collection('comments');
+
+    Future<void> sendComment() async {
+      final text = controller.text.trim();
+      if (text.isEmpty) return;
+
+      try {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        final username =
+            userDoc.data()?['username']?.toString() ??
+            user.email?.split('@').first ??
+            'مستخدم KLAED';
+
+        await commentsRef.add({
+          'authorId': user.uid,
+          'authorName': username,
+          'text': text,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+
+        controller.clear();
+      } catch (_) {
+        if (mounted) showMessage('تعذر إضافة التعليق');
+      }
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            backgroundColor: surface,
+            title: const Text('التعليقات'),
+            content: SizedBox(
+              width: double.maxFinite,
+              height: 420,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: StreamBuilder<
+                        QuerySnapshot<Map<String, dynamic>>>(
+                      stream: commentsRef
+                          .orderBy('createdAt')
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                          return const Center(
+                            child: Text('تعذر تحميل التعليقات'),
+                          );
+                        }
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(
+                              color: purple,
+                            ),
+                          );
+                        }
+
+                        final comments = snapshot.data?.docs ?? [];
+                        if (comments.isEmpty) {
+                          return const Center(
+                            child: Text('لا توجد تعليقات بعد'),
+                          );
+                        }
+
+                        return ListView.builder(
+                          itemCount: comments.length,
+                          itemBuilder: (context, index) {
+                            final comment = comments[index];
+                            final data = comment.data();
+                            final isOwner =
+                                data['authorId'] == user.uid;
+
+                            return ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: const CircleAvatar(
+                                backgroundColor: Color(0xFF30205E),
+                                child: Icon(
+                                  Icons.person,
+                                  color: purple,
+                                ),
+                              ),
+                              title: Text(
+                                data['authorName']?.toString() ??
+                                    'مستخدم KLAED',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              subtitle: Text(
+                                data['text']?.toString() ?? '',
+                              ),
+                              trailing: isOwner
+                                  ? IconButton(
+                                      icon: const Icon(
+                                        Icons.delete_outline,
+                                        color: Colors.redAccent,
+                                      ),
+                                      onPressed: () async {
+                                        try {
+                                          await comment.reference.delete();
+                                        } catch (_) {
+                                          if (mounted) {
+                                            showMessage(
+                                              'تعذر حذف التعليق',
+                                            );
+                                          }
+                                        }
+                                      },
+                                    )
+                                  : null,
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: controller,
+                          maxLength: 1000,
+                          decoration: const InputDecoration(
+                            hintText: 'اكتب تعليقك...',
+                            counterText: '',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: sendComment,
+                        icon: const Icon(
+                          Icons.send,
+                          color: purple,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('إغلاق'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    controller.dispose();
+  }
+
   Widget buildPost(String postId, Map<String, dynamic> post) {
     final user = FirebaseAuth.instance.currentUser;
     final authorId = post['authorId']?.toString() ?? '';
@@ -560,85 +751,109 @@ class _HomePageState extends State<HomePage> {
     final timestamp = post['createdAt'] as Timestamp?;
     final date = timestamp?.toDate();
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(14, 8, 14, 12),
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.06),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    final likesRef = postsRef.doc(postId).collection('likes');
+    final commentsRef = postsRef.doc(postId).collection('comments');
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: likesRef.snapshots(),
+      builder: (context, likesSnapshot) {
+        final likes = likesSnapshot.data?.docs ?? [];
+        final isLiked = user != null &&
+            likes.any((like) => like.id == user.uid);
+
+        return Container(
+          margin: const EdgeInsets.fromLTRB(14, 8, 14, 12),
+          padding: const EdgeInsets.all(15),
+          decoration: BoxDecoration(
+            color: surface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.06),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const CircleAvatar(
-                backgroundColor: Color(0xFF30205E),
-                child: Icon(Icons.person, color: purple),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      authorName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      date == null
-                          ? 'الآن'
-                          : '${date.day}/${date.month}/${date.year} '
-                              '${date.hour}:${date.minute.toString().padLeft(2, '0')}',
-                      style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (isOwner)
-                IconButton(
-                  onPressed: () => deletePost(postId),
-                  icon: const Icon(
-                    Icons.delete_outline,
-                    color: Colors.redAccent,
+              Row(
+                children: [
+                  const CircleAvatar(
+                    backgroundColor: Color(0xFF30205E),
+                    child: Icon(Icons.person, color: purple),
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          authorName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          date == null
+                              ? 'الآن'
+                              : '${date.day}/${date.month}/${date.year} '
+                                  '${date.hour}:${date.minute.toString().padLeft(2, '0')}',
+                          style: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (isOwner)
+                    IconButton(
+                      onPressed: () => deletePost(postId),
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        color: Colors.redAccent,
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 15),
+              SelectableText(
+                text,
+                style: const TextStyle(fontSize: 16, height: 1.6),
+              ),
+              const SizedBox(height: 12),
+              const Divider(color: Colors.white12),
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: () => toggleLike(postId),
+                    icon: Icon(
+                      isLiked ? Icons.favorite : Icons.favorite_border,
+                      color: isLiked ? Colors.redAccent : Colors.white70,
+                    ),
+                  ),
+                  Text('${likes.length} إعجاب'),
+                  const SizedBox(width: 18),
+                  StreamBuilder<
+                      QuerySnapshot<Map<String, dynamic>>>(
+                    stream: commentsRef.snapshots(),
+                    builder: (context, commentsSnapshot) {
+                      final count =
+                          commentsSnapshot.data?.docs.length ?? 0;
+                      return TextButton.icon(
+                        onPressed: () => showComments(postId),
+                        icon: const Icon(
+                          Icons.mode_comment_outlined,
+                          color: purple,
+                        ),
+                        label: Text('$count تعليق'),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ],
           ),
-          const SizedBox(height: 15),
-          SelectableText(
-            text,
-            style: const TextStyle(fontSize: 16, height: 1.6),
-          ),
-          const SizedBox(height: 12),
-          const Divider(color: Colors.white12),
-          Row(
-            children: [
-              const Icon(
-                Icons.favorite_border,
-                color: Colors.white70,
-                size: 20,
-              ),
-              const SizedBox(width: 7),
-              const Text(
-                'الإعجابات ستضاف لاحقاً',
-                style: TextStyle(
-                  color: Colors.white54,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
