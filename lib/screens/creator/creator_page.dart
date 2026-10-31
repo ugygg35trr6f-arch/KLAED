@@ -58,7 +58,7 @@ class _CreatorPageState extends State<CreatorPage> {
                     ),
                     const SizedBox(height: 15),
                     DropdownButtonFormField<String>(
-                      value: category,
+                      initialValue: category,
                       decoration: const InputDecoration(
                         labelText: 'مجال المحتوى',
                       ),
