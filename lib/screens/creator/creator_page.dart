@@ -88,6 +88,7 @@ class _CreatorPageState extends State<CreatorPage> {
                   ),
                   onPressed: () async {
                     final bio = bioController.text.trim();
+                    final messenger = ScaffoldMessenger.of(context);
 
                     try {
                       await FirebaseFirestore.instance
@@ -100,16 +101,17 @@ class _CreatorPageState extends State<CreatorPage> {
                         'creatorUpdatedAt': FieldValue.serverTimestamp(),
                       });
 
-                      if (!mounted) return;
+                      if (!mounted || !dialogContext.mounted) return;
                       Navigator.pop(dialogContext);
 
-                      ScaffoldMessenger.of(this.context).showSnackBar(
+                      messenger.showSnackBar(
                         const SnackBar(
                           content: Text('تم تحديث صفحة منشئ المحتوى'),
                         ),
                       );
                     } catch (_) {
-                      ScaffoldMessenger.of(this.context).showSnackBar(
+                      if (!mounted) return;
+                      messenger.showSnackBar(
                         const SnackBar(
                           content: Text('تعذر حفظ التعديلات'),
                         ),
