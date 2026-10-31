@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "57456888226",
+    "project_id": "klaed-535ee",
+    "storage_bucket": "klaed-535ee.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:57456888226:android:2986f6c3c8dd06fef88afb",
+        "android_client_info": {
+          "package_name": "com.example.klaed"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4T1DtPd1_YQc0uesYUyQmtfk1PZjTr6Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

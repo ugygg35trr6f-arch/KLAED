@@ -1,4 +1,3 @@
-
 name: Build KLAED APK
 
 on:
@@ -30,6 +29,52 @@ jobs:
       - name: Generate Android project files
         run: flutter create --platforms=android --project-name klaed .
 
+      - name: Configure Firebase Android
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          settings = next(
+              p for p in [
+                  Path("android/settings.gradle"),
+                  Path("android/settings.gradle.kts")
+              ] if p.exists()
+          )
+
+          app = next(
+              p for p in [
+                  Path("android/app/build.gradle"),
+                  Path("android/app/build.gradle.kts")
+              ] if p.exists()
+          )
+
+          settings_text = settings.read_text()
+          app_text = app.read_text()
+
+          if "com.google.gms.google-services" not in settings_text:
+              if settings.suffix == ".kts":
+                  line = '    id("com.google.gms.google-services") version "4.5.0" apply false\n'
+              else:
+                  line = '    id "com.google.gms.google-services" version "4.5.0" apply false\n'
+              settings_text = settings_text.replace("plugins {", "plugins {\n" + line, 1)
+
+          if "com.google.gms.google-services" not in app_text:
+              if app.suffix == ".kts":
+                  line = '    id("com.google.gms.google-services")\n'
+              else:
+                  line = '    id "com.google.gms.google-services"\n'
+              app_text = app_text.replace("plugins {", "plugins {\n" + line, 1)
+
+          settings.write_text(settings_text)
+          app.write_text(app_text)
+
+          Path("android/app/google-services.json").write_bytes(
+              Path("firebase/google-services.json").read_bytes()
+          )
+
+          print("Firebase Android configuration completed.")
+          PY
+
       - name: Get dependencies
         run: flutter pub get
 
@@ -46,4 +91,3 @@ jobs:
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 14
-
