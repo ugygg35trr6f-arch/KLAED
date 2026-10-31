@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,9 +28,193 @@ class KLAEDApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const Directionality(
-        textDirection: TextDirection.rtl,
-        child: HomePage(),
+      home: const AuthGate(),
+    );
+  }
+}
+
+
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(color: purple),
+              ),
+            );
+          }
+          if (snapshot.hasData) return const HomePage();
+          return const LoginPage();
+        },
+      ),
+    );
+  }
+}
+
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
+
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  final email = TextEditingController();
+  final password = TextEditingController();
+  bool isLogin = true;
+  bool loading = false;
+  bool hidePassword = true;
+
+  @override
+  void dispose() {
+    email.dispose();
+    password.dispose();
+    super.dispose();
+  }
+
+  Future<void> submit() async {
+    if (email.text.trim().isEmpty || password.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('أدخل البريد وكلمة المرور')),
+      );
+      return;
+    }
+
+    setState(() => loading = true);
+    try {
+      if (isLogin) {
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: email.text.trim(),
+          password: password.text,
+        );
+      } else {
+        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: email.text.trim(),
+          password: password.text,
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      const messages = {
+        'email-already-in-use': 'هذا البريد مسجل بالفعل',
+        'invalid-email': 'البريد الإلكتروني غير صحيح',
+        'weak-password': 'كلمة المرور ضعيفة، استخدم 6 أحرف على الأقل',
+        'user-not-found': 'لا يوجد حساب بهذا البريد',
+        'wrong-password': 'كلمة المرور غير صحيحة',
+        'invalid-credential': 'البريد أو كلمة المرور غير صحيحة',
+        'network-request-failed': 'تحقق من اتصال الإنترنت',
+      };
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(messages[e.code] ?? 'حدث خطأ: ${e.code}')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تعذر إكمال العملية')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: background,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(25),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Icon(Icons.people_alt_rounded, color: purple, size: 75),
+                const SizedBox(height: 15),
+                const Text(
+                  'KLAED',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: purple,
+                    fontSize: 34,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  isLogin ? 'مرحباً بعودتك' : 'أنشئ حسابك الجديد',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 23,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 28),
+                TextField(
+                  controller: email,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'البريد الإلكتروني',
+                    prefixIcon: Icon(Icons.email, color: purple),
+                    filled: true,
+                    fillColor: surface,
+                  ),
+                ),
+                const SizedBox(height: 15),
+                TextField(
+                  controller: password,
+                  obscureText: hidePassword,
+                  decoration: InputDecoration(
+                    labelText: 'كلمة المرور',
+                    prefixIcon: const Icon(Icons.lock, color: purple),
+                    suffixIcon: IconButton(
+                      onPressed: () =>
+                          setState(() => hidePassword = !hidePassword),
+                      icon: Icon(
+                        hidePassword ? Icons.visibility : Icons.visibility_off,
+                        color: purple,
+                      ),
+                    ),
+                    filled: true,
+                    fillColor: surface,
+                  ),
+                ),
+                const SizedBox(height: 22),
+                ElevatedButton(
+                  onPressed: loading ? null : submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: purple,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.all(15),
+                  ),
+                  child: loading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : Text(isLogin ? 'تسجيل الدخول' : 'إنشاء حساب'),
+                ),
+                TextButton(
+                  onPressed: loading
+                      ? null
+                      : () => setState(() => isLogin = !isLogin),
+                  child: Text(
+                    isLogin
+                        ? 'ليس لديك حساب؟ أنشئ حساباً'
+                        : 'لديك حساب؟ سجل الدخول',
+                    style: const TextStyle(color: purple),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
