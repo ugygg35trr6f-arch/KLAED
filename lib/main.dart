@@ -3,14 +3,15 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+const Color purple = Color(0xFF9B5CFF);
+const Color background = Color(0xFF09090F);
+const Color surface = Color(0xFF171520);
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   runApp(const KLAEDApp());
 }
-const Color purple = Color(0xFF9B5CFF);
-const Color background = Color(0xFF09090F);
-const Color surface = Color(0xFF171520);
 
 class KLAEDApp extends StatelessWidget {
   const KLAEDApp({super.key});
@@ -33,7 +34,6 @@ class KLAEDApp extends StatelessWidget {
     );
   }
 }
-
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -71,6 +71,7 @@ class _LoginPageState extends State<LoginPage> {
   final username = TextEditingController();
   final email = TextEditingController();
   final password = TextEditingController();
+
   bool isLogin = true;
   bool loading = false;
   bool hidePassword = true;
@@ -85,20 +86,17 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> submit() async {
     if (!isLogin && username.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('أدخل اسم المستخدم')),
-      );
+      showError('أدخل اسم المستخدم');
       return;
     }
 
     if (email.text.trim().isEmpty || password.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('أدخل البريد وكلمة المرور')),
-      );
+      showError('أدخل البريد وكلمة المرور');
       return;
     }
 
     setState(() => loading = true);
+
     try {
       if (isLogin) {
         await FirebaseAuth.instance.signInWithEmailAndPassword(
@@ -113,9 +111,7 @@ class _LoginPageState extends State<LoginPage> {
         );
 
         final user = credential.user;
-        if (user == null) {
-          throw Exception('تعذر إنشاء الحساب');
-        }
+        if (user == null) throw Exception('تعذر إنشاء الحساب');
 
         await FirebaseFirestore.instance
             .collection('users')
@@ -131,32 +127,30 @@ class _LoginPageState extends State<LoginPage> {
       const messages = {
         'email-already-in-use': 'هذا البريد مسجل بالفعل',
         'invalid-email': 'البريد الإلكتروني غير صحيح',
-        'weak-password': 'كلمة المرور ضعيفة، استخدم 6 أحرف على الأقل',
+        'weak-password': 'كلمة المرور ضعيفة',
         'user-not-found': 'لا يوجد حساب بهذا البريد',
         'wrong-password': 'كلمة المرور غير صحيحة',
         'invalid-credential': 'البريد أو كلمة المرور غير صحيحة',
         'network-request-failed': 'تحقق من اتصال الإنترنت',
       };
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(messages[e.code] ?? 'حدث خطأ: ${e.code}')),
-        );
-      }
+      showError(messages[e.code] ?? 'حدث خطأ: ${e.code}');
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تعذر إكمال العملية')),
-        );
-      }
+      showError('تعذر إكمال العملية');
     } finally {
       if (mounted) setState(() => loading = false);
     }
   }
 
+  void showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: background,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -164,7 +158,8 @@ class _LoginPageState extends State<LoginPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(Icons.people_alt_rounded, color: purple, size: 75),
+                const Icon(Icons.people_alt_rounded,
+                    color: purple, size: 75),
                 const SizedBox(height: 15),
                 const Text(
                   'KLAED',
@@ -188,7 +183,6 @@ class _LoginPageState extends State<LoginPage> {
                 if (!isLogin) ...[
                   TextField(
                     controller: username,
-                    textInputAction: TextInputAction.next,
                     decoration: const InputDecoration(
                       labelText: 'اسم المستخدم',
                       prefixIcon: Icon(Icons.person, color: purple),
@@ -219,7 +213,9 @@ class _LoginPageState extends State<LoginPage> {
                       onPressed: () =>
                           setState(() => hidePassword = !hidePassword),
                       icon: Icon(
-                        hidePassword ? Icons.visibility : Icons.visibility_off,
+                        hidePassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
                         color: purple,
                       ),
                     ),
@@ -236,7 +232,9 @@ class _LoginPageState extends State<LoginPage> {
                     padding: const EdgeInsets.all(15),
                   ),
                   child: loading
-                      ? const CircularProgressIndicator(color: Colors.white)
+                      ? const CircularProgressIndicator(
+                          color: Colors.white,
+                        )
                       : Text(isLogin ? 'تسجيل الدخول' : 'إنشاء حساب'),
                 ),
                 TextButton(
@@ -268,37 +266,9 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int selectedTab = 0;
-  final Set<int> likedPosts = {};
 
-  final List<Map<String, String>> stories = [
-    {'name': 'قصتك', 'initial': '+'},
-    {'name': 'أحمد', 'initial': 'أ'},
-    {'name': 'سارة', 'initial': 'س'},
-    {'name': 'محمد', 'initial': 'م'},
-    {'name': 'نور', 'initial': 'ن'},
-    {'name': 'ليان', 'initial': 'ل'},
-  ];
-
-  final List<Map<String, String>> posts = [
-    {
-      'name': 'أحمد محمد',
-      'username': '@ahmed',
-      'caption': 'مرحباً بكم في KLAED! عالم جديد يجمعنا ❤️',
-      'likes': '1.2 ألف',
-      'comments': '85',
-      'initial': 'أ',
-      'tag': 'لحظات جميلة',
-    },
-    {
-      'name': 'سارة علي',
-      'username': '@sara',
-      'caption': 'اصنع يومك بنفسك، فالحياة أجمل بالتفاؤل ✨',
-      'likes': '856',
-      'comments': '42',
-      'initial': 'س',
-      'tag': 'يوميات',
-    },
-  ];
+  final postsRef = FirebaseFirestore.instance
+      .collection('posts');
 
   void showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -310,48 +280,87 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void openCreateSheet() {
-    showModalBottomSheet(
+  Future<void> createPost() async {
+    final controller = TextEditingController();
+
+    final text = await showDialog<String>(
       context: context,
-      backgroundColor: surface,
-      showDragHandle: true,
-      builder: (context) {
+      builder: (dialogContext) {
         return Directionality(
           textDirection: TextDirection.rtl,
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'إنشاء منشور جديد',
-                  style: TextStyle(
-                    fontSize: 21,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                createOption(Icons.image, 'نشر صورة'),
-                createOption(Icons.video_library, 'نشر فيديو'),
-                createOption(Icons.edit, 'كتابة منشور'),
-                const SizedBox(height: 20),
-              ],
+          child: AlertDialog(
+            backgroundColor: surface,
+            title: const Text('إنشاء منشور'),
+            content: TextField(
+              controller: controller,
+              autofocus: true,
+              maxLines: 5,
+              maxLength: 5000,
+              decoration: const InputDecoration(
+                hintText: 'بماذا تفكر؟ اكتب منشورك هنا...',
+                border: OutlineInputBorder(),
+              ),
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('إلغاء'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: purple,
+                ),
+                onPressed: () {
+                  Navigator.pop(dialogContext, controller.text.trim());
+                },
+                child: const Text('نشر'),
+              ),
+            ],
           ),
         );
       },
     );
+
+    controller.dispose();
+
+    if (text == null || text.isEmpty) return;
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      final username =
+          userDoc.data()?['username']?.toString() ??
+          user.email?.split('@').first ??
+          'مستخدم KLAED';
+
+      await postsRef.add({
+        'authorId': user.uid,
+        'authorName': username,
+        'text': text,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      if (mounted) showMessage('تم نشر منشورك بنجاح');
+    } catch (e) {
+      if (mounted) {
+        showMessage('تعذر نشر المنشور. تحقق من الإنترنت والصلاحيات.');
+      }
+    }
   }
 
-  Widget createOption(IconData icon, String title) {
-    return ListTile(
-      leading: Icon(icon, color: purple),
-      title: Text(title),
-      onTap: () {
-        Navigator.pop(context);
-        showMessage('سنضيف هذه الميزة في المرحلة القادمة');
-      },
-    );
+  Future<void> deletePost(String postId) async {
+    try {
+      await postsRef.doc(postId).delete();
+      if (mounted) showMessage('تم حذف المنشور');
+    } catch (_) {
+      if (mounted) showMessage('تعذر حذف المنشور');
+    }
   }
 
   @override
@@ -364,8 +373,8 @@ class _HomePageState extends State<HomePage> {
             buildHome(),
             buildPlaceholder('الفيديوهات', Icons.play_circle_outline),
             buildPlaceholder('استكشف', Icons.explore_outlined),
-            buildPlaceholder('إنشاء منشور', Icons.add_box_outlined),
-            buildPlaceholder('حسابي', Icons.person_outline),
+            buildPlaceholder('إضافة منشور', Icons.add_box_outlined),
+            buildProfile(),
           ],
         ),
       ),
@@ -375,7 +384,7 @@ class _HomePageState extends State<HomePage> {
         selectedIndex: selectedTab,
         onDestinationSelected: (index) {
           if (index == 3) {
-            openCreateSheet();
+            createPost();
             return;
           }
           setState(() => selectedTab = index);
@@ -411,42 +420,84 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget buildHome() {
-    return CustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(child: buildHeader()),
-        SliverToBoxAdapter(child: buildStories()),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 22, 16, 12),
-            child: Row(
-              children: [
-                const Text(
-                  'آخر المنشورات',
-                  style: TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.bold,
-                  ),
+    return Column(
+      children: [
+        buildHeader(),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: Row(
+            children: [
+              const Text(
+                'آخر المنشورات',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
                 ),
-                const Spacer(),
-                TextButton(
-                  onPressed: () => showMessage('أنت تشاهد أحدث المنشورات'),
-                  child: const Text(
-                    'الأحدث',
-                    style: TextStyle(color: purple),
-                  ),
-                ),
-              ],
-            ),
+              ),
+              const Spacer(),
+              IconButton(
+                onPressed: createPost,
+                icon: const Icon(Icons.add_circle, color: purple),
+              ),
+            ],
           ),
         ),
-        SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) => buildPost(index),
-            childCount: posts.length,
+        Expanded(
+          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: postsRef
+                .orderBy('createdAt', descending: true)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: CircularProgressIndicator(color: purple),
+                );
+              }
+
+              if (snapshot.hasError) {
+                return const Center(
+                  child: Text('تعذر تحميل المنشورات'),
+                );
+              }
+
+              final documents = snapshot.data?.docs ?? [];
+
+              if (documents.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.post_add,
+                        color: purple,
+                        size: 65,
+                      ),
+                      const SizedBox(height: 12),
+                      const Text('لا توجد منشورات حتى الآن'),
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        onPressed: createPost,
+                        icon: const Icon(Icons.add),
+                        label: const Text('اكتب أول منشور'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: purple,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.only(bottom: 20),
+                itemCount: documents.length,
+                itemBuilder: (context, index) {
+                  final doc = documents[index];
+                  return buildPost(doc.id, doc.data());
+                },
+              );
+            },
           ),
-        ),
-        const SliverToBoxAdapter(
-          child: SizedBox(height: 30),
         ),
       ],
     );
@@ -454,7 +505,10 @@ class _HomePageState extends State<HomePage> {
 
   Widget buildHeader() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 18,
+        vertical: 12,
+      ),
       child: Row(
         children: [
           Container(
@@ -484,211 +538,142 @@ class _HomePageState extends State<HomePage> {
           const Spacer(),
           IconButton(
             onPressed: () => showMessage('الإشعارات قريباً'),
-            icon: const Icon(Icons.notifications_none, size: 27),
+            icon: const Icon(Icons.notifications_none),
           ),
           IconButton(
             onPressed: () => showMessage('الرسائل قريباً'),
-            icon: const Icon(Icons.send_outlined, size: 25),
+            icon: const Icon(Icons.send_outlined),
           ),
         ],
       ),
     );
   }
 
-  Widget buildStories() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-          child: Text(
-            'القصص',
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-          ),
-        ),
-        SizedBox(
-          height: 105,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            itemCount: stories.length,
-            itemBuilder: (context, index) {
-              final story = stories[index];
-              return GestureDetector(
-                onTap: () => showMessage(
-                  index == 0 ? 'إضافة قصتك قريباً' : 'قصة ${story['name']}',
-                ),
-                child: SizedBox(
-                  width: 75,
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: purple, width: 2),
-                        ),
-                        child: CircleAvatar(
-                          radius: 27,
-                          backgroundColor: surface,
-                          child: Text(
-                            story['initial']!,
-                            style: const TextStyle(
-                              color: purple,
-                              fontSize: 23,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 7),
-                      Text(
-                        story['name']!,
-                        maxLines: 1,
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
+  Widget buildPost(String postId, Map<String, dynamic> post) {
+    final user = FirebaseAuth.instance.currentUser;
+    final authorId = post['authorId']?.toString() ?? '';
+    final authorName =
+        post['authorName']?.toString() ?? 'مستخدم KLAED';
+    final text = post['text']?.toString() ?? '';
+    final isOwner = user?.uid == authorId;
 
-  Widget buildPost(int index) {
-    final post = posts[index];
-    final liked = likedPosts.contains(index);
+    final timestamp = post['createdAt'] as Timestamp?;
+    final date = timestamp?.toDate();
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(14, 8, 14, 15),
+      margin: const EdgeInsets.fromLTRB(14, 8, 14, 12),
+      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.06),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(13),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: purple.withValues(alpha: 0.2),
-                  child: Text(
-                    post['initial']!,
-                    style: const TextStyle(
-                      color: purple,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Column(
+          Row(
+            children: [
+              const CircleAvatar(
+                backgroundColor: Color(0xFF30205E),
+                child: Icon(Icons.person, color: purple),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      post['name']!,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      authorName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     Text(
-                      post['username']!,
+                      date == null
+                          ? 'الآن'
+                          : '${date.day}/${date.month}/${date.year} '
+                              '${date.hour}:${date.minute.toString().padLeft(2, '0')}',
                       style: const TextStyle(
                         color: Colors.white54,
-                        fontSize: 12,
+                        fontSize: 11,
                       ),
                     ),
                   ],
                 ),
-                const Spacer(),
+              ),
+              if (isOwner)
                 IconButton(
-                  onPressed: () => showMessage('خيارات المنشور'),
-                  icon: const Icon(Icons.more_horiz),
+                  onPressed: () => deletePost(postId),
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    color: Colors.redAccent,
+                  ),
                 ),
-              ],
-            ),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-            child: Text(post['caption']!),
+          const SizedBox(height: 15),
+          SelectableText(
+            text,
+            style: const TextStyle(fontSize: 16, height: 1.6),
           ),
           const SizedBox(height: 12),
-          Container(
-            height: 245,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topRight,
-                end: Alignment.bottomLeft,
-                colors: index == 0
-                    ? const [Color(0xFF51218B), Color(0xFF171020)]
-                    : const [Color(0xFF30205E), Color(0xFF101018)],
+          const Divider(color: Colors.white12),
+          Row(
+            children: [
+              const Icon(
+                Icons.favorite_border,
+                color: Colors.white70,
+                size: 20,
               ),
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                const Icon(
-                  Icons.auto_awesome,
-                  size: 85,
-                  color: Colors.white24,
+              const SizedBox(width: 7),
+              const Text(
+                'الإعجابات ستضاف لاحقاً',
+                style: TextStyle(
+                  color: Colors.white54,
+                  fontSize: 12,
                 ),
-                Positioned(
-                  bottom: 16,
-                  right: 16,
-                  child: Text(
-                    post['tag']!,
-                    style: const TextStyle(
-                      fontSize: 21,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            child: Row(
-              children: [
-                IconButton(
-                  onPressed: () {
-                    setState(() {
-                      if (liked) {
-                        likedPosts.remove(index);
-                      } else {
-                        likedPosts.add(index);
-                      }
-                    });
-                  },
-                  icon: Icon(
-                    liked ? Icons.favorite : Icons.favorite_border,
-                    color: liked ? Colors.pinkAccent : Colors.white,
-                  ),
-                ),
-                Text(post['likes']!),
-                const SizedBox(width: 12),
-                IconButton(
-                  onPressed: () => showMessage('التعليقات ستتوفر قريباً'),
-                  icon: const Icon(Icons.mode_comment_outlined),
-                ),
-                Text(post['comments']!),
-                const Spacer(),
-                IconButton(
-                  onPressed: () => showMessage('المشاركة قريباً'),
-                  icon: const Icon(Icons.share_outlined),
-                ),
-                IconButton(
-                  onPressed: () => showMessage('تم حفظ المنشور تجريبياً'),
-                  icon: const Icon(Icons.bookmark_border),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget buildProfile() {
+    final user = FirebaseAuth.instance.currentUser;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(25),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircleAvatar(
+              radius: 45,
+              backgroundColor: surface,
+              child: Icon(Icons.person, color: purple, size: 50),
+            ),
+            const SizedBox(height: 15),
+            Text(
+              user?.email ?? 'حسابي',
+              style: const TextStyle(fontSize: 17),
+            ),
+            const SizedBox(height: 25),
+            ElevatedButton.icon(
+              onPressed: () async {
+                await FirebaseAuth.instance.signOut();
+              },
+              icon: const Icon(Icons.logout),
+              label: const Text('تسجيل الخروج'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: purple,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -709,7 +694,7 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'نعمل على تجهيز هذه الصفحة',
+            'ستتوفر هذه الميزة في المرحلة القادمة',
             style: TextStyle(color: Colors.white54),
           ),
         ],
@@ -717,4 +702,3 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
-
