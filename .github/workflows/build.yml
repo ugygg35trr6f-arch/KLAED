@@ -6,14 +6,13 @@ on:
   push:
     branches:
       - main
-      - master
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout project
         uses: actions/checkout@v4
 
       - name: Setup Java
@@ -28,13 +27,16 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Flutter Doctor
-        run: flutter doctor -v
+      - name: Generate Android project files
+        run: flutter create --platforms=android --project-name klaed .
 
-      - name: Get Dependencies
+      - name: Get dependencies
         run: flutter pub get
 
-      - name: Build APK
+      - name: Check Flutter project
+        run: flutter analyze
+
+      - name: Build release APK
         run: flutter build apk --release
 
       - name: Upload APK
@@ -42,3 +44,6 @@ jobs:
         with:
           name: KLAED-Android-APK
           path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 14
+
