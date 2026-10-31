@@ -1,10 +1,11 @@
-
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp(const KLAEDApp());
 }
-
 const Color purple = Color(0xFF9B5CFF);
 const Color background = Color(0xFF09090F);
 const Color surface = Color(0xFF171520);
