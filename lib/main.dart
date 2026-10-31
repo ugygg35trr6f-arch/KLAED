@@ -1,11 +1,16 @@
+
 import 'package:flutter/material.dart';
 
 void main() {
-  runApp(const KlaedApp());
+  runApp(const KLAEDApp());
 }
 
-class KlaedApp extends StatelessWidget {
-  const KlaedApp({super.key});
+const Color purple = Color(0xFF9B5CFF);
+const Color background = Color(0xFF09090F);
+const Color surface = Color(0xFF171520);
+
+class KLAEDApp extends StatelessWidget {
+  const KLAEDApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -14,212 +19,477 @@ class KlaedApp extends StatelessWidget {
       title: 'KLAED',
       theme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF080808),
+        scaffoldBackgroundColor: background,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF8B5CF6),
+          seedColor: purple,
           brightness: Brightness.dark,
         ),
         useMaterial3: true,
       ),
       home: const Directionality(
         textDirection: TextDirection.rtl,
-        child: KlaedHome(),
+        child: HomePage(),
       ),
     );
   }
 }
 
-class KlaedHome extends StatefulWidget {
-  const KlaedHome({super.key});
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
 
   @override
-  State<KlaedHome> createState() => _KlaedHomeState();
+  State<HomePage> createState() => _HomePageState();
 }
 
-class _KlaedHomeState extends State<KlaedHome> {
-  int index = 0;
+class _HomePageState extends State<HomePage> {
+  int selectedTab = 0;
+  final Set<int> likedPosts = {};
 
-  final pages = const [
-    FeedPage(),
-    SimplePage(title: 'فيديوهات KLAED', icon: Icons.play_circle),
-    SimplePage(title: 'إنشاء منشور', icon: Icons.add_a_photo),
-    SimplePage(title: 'الرسائل', icon: Icons.chat),
-    SimplePage(title: 'ملفي الشخصي', icon: Icons.person),
+  final List<Map<String, String>> stories = [
+    {'name': 'قصتك', 'initial': '+'},
+    {'name': 'أحمد', 'initial': 'أ'},
+    {'name': 'سارة', 'initial': 'س'},
+    {'name': 'محمد', 'initial': 'م'},
+    {'name': 'نور', 'initial': 'ن'},
+    {'name': 'ليان', 'initial': 'ل'},
   ];
+
+  final List<Map<String, String>> posts = [
+    {
+      'name': 'أحمد محمد',
+      'username': '@ahmed',
+      'caption': 'مرحباً بكم في KLAED! عالم جديد يجمعنا ❤️',
+      'likes': '1.2 ألف',
+      'comments': '85',
+      'initial': 'أ',
+      'tag': 'لحظات جميلة',
+    },
+    {
+      'name': 'سارة علي',
+      'username': '@sara',
+      'caption': 'اصنع يومك بنفسك، فالحياة أجمل بالتفاؤل ✨',
+      'likes': '856',
+      'comments': '42',
+      'initial': 'س',
+      'tag': 'يوميات',
+    },
+  ];
+
+  void showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: surface,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void openCreateSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: surface,
+      showDragHandle: true,
+      builder: (context) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'إنشاء منشور جديد',
+                  style: TextStyle(
+                    fontSize: 21,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                createOption(Icons.image, 'نشر صورة'),
+                createOption(Icons.video_library, 'نشر فيديو'),
+                createOption(Icons.edit, 'كتابة منشور'),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget createOption(IconData icon, String title) {
+    return ListTile(
+      leading: Icon(icon, color: purple),
+      title: Text(title),
+      onTap: () {
+        Navigator.pop(context);
+        showMessage('سنضيف هذه الميزة في المرحلة القادمة');
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'KLAED',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            letterSpacing: 3,
-          ),
+      body: SafeArea(
+        child: IndexedStack(
+          index: selectedTab,
+          children: [
+            buildHome(),
+            buildPlaceholder('الفيديوهات', Icons.play_circle_outline),
+            buildPlaceholder('استكشف', Icons.explore_outlined),
+            buildPlaceholder('إنشاء منشور', Icons.add_box_outlined),
+            buildPlaceholder('حسابي', Icons.person_outline),
+          ],
         ),
-        backgroundColor: const Color(0xFF080808),
-        actions: const [
-          Icon(Icons.notifications_none),
-          SizedBox(width: 20),
-        ],
       ),
-      body: pages[index],
       bottomNavigationBar: NavigationBar(
-        backgroundColor: const Color(0xFF151515),
-        selectedIndex: index,
-        onDestinationSelected: (value) {
-          setState(() => index = value);
+        backgroundColor: const Color(0xFF111019),
+        indicatorColor: purple.withOpacity(0.2),
+        selectedIndex: selectedTab,
+        onDestinationSelected: (index) {
+          if (index == 3) {
+            openCreateSheet();
+            return;
+          }
+          setState(() => selectedTab = index);
         },
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home, color: purple),
             label: 'الرئيسية',
           ),
           NavigationDestination(
             icon: Icon(Icons.play_circle_outline),
-            label: 'الفيديو',
+            selectedIcon: Icon(Icons.play_circle, color: purple),
+            label: 'فيديو',
           ),
           NavigationDestination(
-            icon: Icon(Icons.add_circle_outline),
-            label: 'نشر',
+            icon: Icon(Icons.explore_outlined),
+            selectedIcon: Icon(Icons.explore, color: purple),
+            label: 'استكشف',
           ),
           NavigationDestination(
-            icon: Icon(Icons.chat_bubble_outline),
-            label: 'الرسائل',
+            icon: Icon(Icons.add_box_outlined),
+            label: 'إضافة',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person, color: purple),
             label: 'حسابي',
           ),
         ],
       ),
     );
   }
-}
 
-class FeedPage extends StatelessWidget {
-  const FeedPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        const Text(
-          'مرحباً بك في KLAED',
-          style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 20),
-        const Text('القصص', style: TextStyle(fontSize: 18)),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 85,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: List.generate(8, (i) {
-              return Padding(
-                padding: const EdgeInsets.only(left: 12),
-                child: Column(
-                  children: [
-                    const CircleAvatar(
-                      radius: 27,
-                      backgroundColor: Colors.deepPurple,
-                      child: Icon(Icons.person),
-                    ),
-                    const SizedBox(height: 5),
-                    Text('مستخدم ${i + 1}'),
-                  ],
+  Widget buildHome() {
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(child: buildHeader()),
+        SliverToBoxAdapter(child: buildStories()),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 22, 16, 12),
+            child: Row(
+              children: [
+                const Text(
+                  'آخر المنشورات',
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              );
-            }),
+                const Spacer(),
+                TextButton(
+                  onPressed: () => showMessage('أنت تشاهد أحدث المنشورات'),
+                  child: const Text(
+                    'الأحدث',
+                    style: TextStyle(color: purple),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        const SizedBox(height: 25),
-        const Text(
-          'أحدث المنشورات',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) => buildPost(index),
+            childCount: posts.length,
+          ),
         ),
-        const SizedBox(height: 12),
-        ...List.generate(5, (i) {
-          return Card(
-            color: const Color(0xFF191919),
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      CircleAvatar(
-                        backgroundColor: Colors.deepPurple,
-                        child: Icon(Icons.person),
-                      ),
-                      SizedBox(width: 10),
-                      Text('KLAED User'),
-                      Spacer(),
-                      Icon(Icons.more_horiz),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Container(
-                    height: 190,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF29213B),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.image_outlined,
-                      size: 65,
-                      color: Colors.white54,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Row(
-                    children: [
-                      Icon(Icons.favorite_border),
-                      SizedBox(width: 20),
-                      Icon(Icons.comment_outlined),
-                      SizedBox(width: 20),
-                      Icon(Icons.share_outlined),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text('منشور تجريبي رقم ${i + 1}'),
-                ],
-              ),
-            ),
-          );
-        }),
+        const SliverToBoxAdapter(
+          child: SizedBox(height: 30),
+        ),
       ],
     );
   }
-}
 
-class SimplePage extends StatelessWidget {
-  final String title;
-  final IconData icon;
+  Widget buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              gradient: const LinearGradient(
+                colors: [purple, Color(0xFF5425A8)],
+              ),
+            ),
+            child: const Icon(
+              Icons.bolt,
+              color: Colors.white,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 10),
+          const Text(
+            'KLAED',
+            style: TextStyle(
+              fontSize: 25,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 2,
+            ),
+          ),
+          const Spacer(),
+          IconButton(
+            onPressed: () => showMessage('الإشعارات قريباً'),
+            icon: const Icon(Icons.notifications_none, size: 27),
+          ),
+          IconButton(
+            onPressed: () => showMessage('الرسائل قريباً'),
+            icon: const Icon(Icons.send_outlined, size: 25),
+          ),
+        ],
+      ),
+    );
+  }
 
-  const SimplePage({
-    super.key,
-    required this.title,
-    required this.icon,
-  });
+  Widget buildStories() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+          child: Text(
+            'القصص',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+          ),
+        ),
+        SizedBox(
+          height: 105,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            itemCount: stories.length,
+            itemBuilder: (context, index) {
+              final story = stories[index];
+              return GestureDetector(
+                onTap: () => showMessage(
+                  index == 0 ? 'إضافة قصتك قريباً' : 'قصة ${story['name']}',
+                ),
+                child: SizedBox(
+                  width: 75,
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: purple, width: 2),
+                        ),
+                        child: CircleAvatar(
+                          radius: 27,
+                          backgroundColor: surface,
+                          child: Text(
+                            story['initial']!,
+                            style: const TextStyle(
+                              color: purple,
+                              fontSize: 23,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 7),
+                      Text(
+                        story['name']!,
+                        maxLines: 1,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget buildPost(int index) {
+    final post = posts[index];
+    final liked = likedPosts.contains(index);
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(14, 8, 14, 15),
+      decoration: BoxDecoration(
+        color: surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(13),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: purple.withOpacity(0.2),
+                  child: Text(
+                    post['initial']!,
+                    style: const TextStyle(
+                      color: purple,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      post['name']!,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      post['username']!,
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                IconButton(
+                  onPressed: () => showMessage('خيارات المنشور'),
+                  icon: const Icon(Icons.more_horiz),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+            child: Text(post['caption']!),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            height: 245,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topRight,
+                end: Alignment.bottomLeft,
+                colors: index == 0
+                    ? const [Color(0xFF51218B), Color(0xFF171020)]
+                    : const [Color(0xFF30205E), Color(0xFF101018)],
+              ),
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                const Icon(
+                  Icons.auto_awesome,
+                  size: 85,
+                  color: Colors.white24,
+                ),
+                Positioned(
+                  bottom: 16,
+                  right: 16,
+                  child: Text(
+                    post['tag']!,
+                    style: const TextStyle(
+                      fontSize: 21,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: () {
+                    setState(() {
+                      if (liked) {
+                        likedPosts.remove(index);
+                      } else {
+                        likedPosts.add(index);
+                      }
+                    });
+                  },
+                  icon: Icon(
+                    liked ? Icons.favorite : Icons.favorite_border,
+                    color: liked ? Colors.pinkAccent : Colors.white,
+                  ),
+                ),
+                Text(post['likes']!),
+                const SizedBox(width: 12),
+                IconButton(
+                  onPressed: () => showMessage('التعليقات ستتوفر قريباً'),
+                  icon: const Icon(Icons.mode_comment_outlined),
+                ),
+                Text(post['comments']!),
+                const Spacer(),
+                IconButton(
+                  onPressed: () => showMessage('المشاركة قريباً'),
+                  icon: const Icon(Icons.share_outlined),
+                ),
+                IconButton(
+                  onPressed: () => showMessage('تم حفظ المنشور تجريبياً'),
+                  icon: const Icon(Icons.bookmark_border),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildPlaceholder(String title, IconData icon) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 75, color: Colors.deepPurple),
-          const SizedBox(height: 18),
-          Text(title, style: const TextStyle(fontSize: 24)),
+          Icon(icon, color: purple, size: 65),
+          const SizedBox(height: 15),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 23,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 8),
-          const Text('مرحباً بك في KLAED'),
+          const Text(
+            'نعمل على تجهيز هذه الصفحة',
+            style: TextStyle(color: Colors.white54),
+          ),
         ],
       ),
     );
   }
 }
+
