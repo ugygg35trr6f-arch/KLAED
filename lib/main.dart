@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'screens/creator/creator_page.dart';
 
 const Color purple = Color(0xFF9B5CFF);
 const Color background = Color(0xFF09090F);
@@ -875,6 +876,23 @@ class _HomePageState extends State<HomePage> {
             Text(
               user?.email ?? 'حسابي',
               style: const TextStyle(fontSize: 17),
+            ),
+            const SizedBox(height: 15),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const CreatorPage(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.stars),
+              label: const Text('صفحة منشئ المحتوى'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: purple,
+                foregroundColor: Colors.white,
+              ),
             ),
             const SizedBox(height: 25),
             ElevatedButton.icon(
