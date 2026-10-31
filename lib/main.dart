@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -67,6 +68,7 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  final username = TextEditingController();
   final email = TextEditingController();
   final password = TextEditingController();
   bool isLogin = true;
@@ -75,12 +77,20 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   void dispose() {
+    username.dispose();
     email.dispose();
     password.dispose();
     super.dispose();
   }
 
   Future<void> submit() async {
+    if (!isLogin && username.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('أدخل اسم المستخدم')),
+      );
+      return;
+    }
+
     if (email.text.trim().isEmpty || password.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('أدخل البريد وكلمة المرور')),
@@ -96,10 +106,26 @@ class _LoginPageState extends State<LoginPage> {
           password: password.text,
         );
       } else {
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        final credential =
+            await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: email.text.trim(),
           password: password.text,
         );
+
+        final user = credential.user;
+        if (user == null) {
+          throw Exception('تعذر إنشاء الحساب');
+        }
+
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .set({
+          'uid': user.uid,
+          'username': username.text.trim(),
+          'email': user.email,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
       }
     } on FirebaseAuthException catch (e) {
       const messages = {
@@ -159,6 +185,19 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
                 const SizedBox(height: 28),
+                if (!isLogin) ...[
+                  TextField(
+                    controller: username,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'اسم المستخدم',
+                      prefixIcon: Icon(Icons.person, color: purple),
+                      filled: true,
+                      fillColor: surface,
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                ],
                 TextField(
                   controller: email,
                   keyboardType: TextInputType.emailAddress,
