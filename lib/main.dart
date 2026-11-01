@@ -858,27 +858,225 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+
   Widget buildProfile() {
     final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return const Center(child: Text('يجب تسجيل الدخول أولاً'));
+    }
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(25),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+    final userRef =
+        FirebaseFirestore.instance.collection('users').doc(user.uid);
+
+    Future<void> editProfile(Map<String, dynamic> data) async {
+      final nameController = TextEditingController(
+        text: data['username']?.toString() ?? '',
+      );
+      final bioController = TextEditingController(
+        text: data['bio']?.toString() ?? '',
+      );
+
+      final result = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            backgroundColor: surface,
+            title: const Text('تعديل الملف الشخصي'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameController,
+                    maxLength: 40,
+                    decoration: const InputDecoration(
+                      labelText: 'اسم المستخدم',
+                      prefixIcon: Icon(Icons.person, color: purple),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: bioController,
+                    maxLength: 250,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      labelText: 'نبذة عنك',
+                      hintText: 'اكتب نبذة تعريفية عن نفسك...',
+                      prefixIcon: Icon(Icons.info_outline, color: purple),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('إلغاء'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: purple,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () =>
+                    Navigator.pop(dialogContext, true),
+                child: const Text('حفظ'),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (result == true) {
+        final name = nameController.text.trim();
+        final bio = bioController.text.trim();
+
+        if (name.isEmpty) {
+          if (mounted) showMessage('يرجى إدخال اسم المستخدم');
+        } else {
+          try {
+            await userRef.update({
+              'username': name,
+              'bio': bio,
+              'updatedAt': FieldValue.serverTimestamp(),
+              'uid': user.uid,
+            });
+            if (mounted) showMessage('تم تحديث الملف الشخصي');
+          } catch (_) {
+            if (mounted) showMessage('تعذر حفظ التعديلات');
+          }
+        }
+      }
+
+      nameController.dispose();
+      bioController.dispose();
+    }
+
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: userRef.snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: purple),
+          );
+        }
+
+        if (snapshot.hasError || !snapshot.hasData ||
+            !snapshot.data!.exists) {
+          return const Center(
+            child: Text('تعذر تحميل الملف الشخصي'),
+          );
+        }
+
+        final data = snapshot.data!.data() ?? {};
+        final username = data['username']?.toString() ??
+            user.email?.split('@').first ?? 'مستخدم KLAED';
+        final bio = data['bio']?.toString() ?? '';
+        final email = user.email ?? '';
+
+        return ListView(
+          padding: const EdgeInsets.all(18),
           children: [
-            const CircleAvatar(
-              radius: 45,
-              backgroundColor: surface,
-              child: Icon(Icons.person, color: purple, size: 50),
+            const SizedBox(height: 12),
+            Center(
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: purple, width: 2),
+                ),
+                child: const CircleAvatar(
+                  radius: 48,
+                  backgroundColor: Color(0xFF30205E),
+                  child: Icon(
+                    Icons.person,
+                    color: purple,
+                    size: 55,
+                  ),
+                ),
+              ),
             ),
-            const SizedBox(height: 15),
-            Text(
-              user?.email ?? 'حسابي',
-              style: const TextStyle(fontSize: 17),
+            const SizedBox(height: 14),
+            Center(
+              child: Text(
+                username,
+                style: const TextStyle(
+                  fontSize: 23,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
-            const SizedBox(height: 15),
+            const SizedBox(height: 5),
+            Center(
+              child: Text(
+                email,
+                style: const TextStyle(color: Colors.white54),
+              ),
+            ),
+            const SizedBox(height: 18),
+            StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: postsRef
+                  .where('authorId', isEqualTo: user.uid)
+                  .snapshots(),
+              builder: (context, postsSnapshot) {
+                final count = postsSnapshot.data?.docs.length ?? 0;
+                return Container(
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  decoration: BoxDecoration(
+                    color: surface,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _profileStat('المنشورات', '$count'),
+                      _profileStat('المتابعون', 'قريباً'),
+                      _profileStat('يتابع', 'قريباً'),
+                    ],
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 18),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: surface,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'نبذة عني',
+                    style: TextStyle(
+                      color: purple,
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 9),
+                  Text(
+                    bio.isEmpty ? 'لم تضف نبذة تعريفية بعد.' : bio,
+                    style: const TextStyle(height: 1.6),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
             ElevatedButton.icon(
+              onPressed: () => editProfile(data),
+              icon: const Icon(Icons.edit),
+              label: const Text('تعديل الملف الشخصي'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: purple,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.all(14),
+              ),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
               onPressed: () {
                 Navigator.push(
                   context,
@@ -887,27 +1085,58 @@ class _HomePageState extends State<HomePage> {
                   ),
                 );
               },
-              icon: const Icon(Icons.stars),
+              icon: const Icon(Icons.stars, color: purple),
               label: const Text('صفحة منشئ المحتوى'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: purple,
-                foregroundColor: Colors.white,
+            ),
+            const SizedBox(height: 10),
+            Container(
+              decoration: BoxDecoration(
+                color: surface,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const ListTile(
+                leading: Icon(Icons.lock_outline, color: purple),
+                title: Text('خصوصية الحساب'),
+                subtitle: Text(
+                  'إعداد الحساب العام والخاص سيُفعّل بعد تجهيز صلاحيات Firestore',
+                ),
               ),
             ),
-            const SizedBox(height: 25),
-            ElevatedButton.icon(
+            const SizedBox(height: 18),
+            OutlinedButton.icon(
               onPressed: () async {
                 await FirebaseAuth.instance.signOut();
               },
               icon: const Icon(Icons.logout),
               label: const Text('تسجيل الخروج'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: purple,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.redAccent,
               ),
             ),
+            const SizedBox(height: 25),
           ],
+        );
+      },
+    );
+  }
+
+  Widget _profileStat(String title, String value) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            color: purple,
+            fontSize: 19,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-      ),
+        const SizedBox(height: 5),
+        Text(
+          title,
+          style: const TextStyle(color: Colors.white70),
+        ),
+      ],
     );
   }
 
